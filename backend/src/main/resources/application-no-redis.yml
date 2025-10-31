@@ -1,0 +1,96 @@
+spring:
+  # Database configuration (same as dev)
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/gemini_web_app_dev}
+    username: ${DATABASE_USERNAME:gemini_user}
+    password: ${DATABASE_PASSWORD:gemini_password}
+  
+  # JPA configuration
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+  
+  # Disable Redis configuration
+  data:
+    redis:
+      repositories:
+        enabled: false
+  
+  # Session management without Redis (use in-memory)
+  session:
+    store-type: none
+  
+  # Security configuration
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:dev-google-client-id}
+            client-secret: ${GOOGLE_CLIENT_SECRET:dev-google-client-secret}
+
+# Gemini API configuration
+gemini:
+  api:
+    key: ${GEMINI_API_KEY:dev-gemini-api-key}
+    base-url: https://generativelanguage.googleapis.com/v1beta
+    model: gemini-pro
+    timeout: 30s
+    max-retries: 3
+
+# Application configuration without Redis
+app:
+  quota:
+    anonymous-requests: 1
+    registered-requests: 5
+  security:
+    jwt:
+      secret: ${JWT_SECRET:dev-jwt-secret-key-not-for-production}
+      expiration: 86400000
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:3001}
+    allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+    allowed-headers: "*"
+    allow-credentials: true
+  # Disable Redis-based features
+  cache:
+    enabled: false
+  session:
+    redis-enabled: false
+
+# Logging configuration
+logging:
+  level:
+    com.example.geminiapp: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.springframework.web: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# Actuator configuration without Redis health check
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: always
+      show-components: always
+    shutdown:
+      enabled: true
+  health:
+    redis:
+      enabled: false  # Disable Redis health check
+    db:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true

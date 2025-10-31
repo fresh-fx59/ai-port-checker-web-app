@@ -1,0 +1,97 @@
+spring:
+  # Allow circular references for testing
+  main:
+    allow-circular-references: true
+  
+  # Test database configuration - H2 in-memory
+  datasource:
+    url: jdbc:h2:mem:testdb
+    username: sa
+    password: 
+    driver-class-name: org.h2.Driver
+  
+  # JPA configuration for testing
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.H2Dialect
+  
+  # Disable Flyway for testing (let Hibernate create schema)
+  flyway:
+    enabled: false
+  
+  # H2 Console for debugging (optional)
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  
+  # Disable Redis for testing
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: ""
+  
+  # Test security settings
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: test-google-client-id
+            client-secret: test-google-client-secret
+
+# Gemini API configuration for testing
+gemini:
+  api:
+    key: test-gemini-api-key
+    base-url: https://generativelanguage.googleapis.com/v1beta
+    model: gemini-pro
+    timeout: 30s
+    max-retries: 3
+
+# Test-specific application configuration
+app:
+  quota:
+    anonymous-requests: 1
+    registered-requests: 5
+  security:
+    jwt:
+      secret: test-jwt-secret-key-for-testing-only
+      expiration: 86400000
+  cors:
+    allowed-origins: http://localhost:3000,http://localhost:3001
+    allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+    allowed-headers: "*"
+    allow-credentials: true
+
+# Test logging
+logging:
+  level:
+    com.example.geminiapp: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.springframework.web: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# Test actuator settings
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: always
+      show-components: always
+  metrics:
+    export:
+      prometheus:
+        enabled: false
