@@ -95,7 +95,7 @@ services:
       - "com.centurylinklabs.watchtower.enable=true"
 
   watchtower:
-    image: containrrr/watchtower:latest
+    image: containrrr/watchtower:1.7.1
     container_name: gemini-watchtower
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
