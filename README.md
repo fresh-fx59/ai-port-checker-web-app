@@ -2,6 +2,27 @@
 
 A web application that securely processes user prompts with a predefined system prompt, sends them to Google's Gemini AI API, and displays the AI-generated reports back to users through a web interface.
 
+## Quick Start
+
+**🚀 Want to test locally first?** Start here:
+
+```bash
+# 1. Edit .env.local with your API keys
+nano .env.local          # Add your GEMINI_API_KEY
+
+# 2. Run the automated setup script
+./test-local.sh          # macOS/Linux
+# or
+test-local.bat           # Windows
+
+# 3. Start backend and frontend as directed
+# 4. Open http://localhost:5173 in your browser
+```
+
+**📖 Detailed guide:** See [DEPLOYMENT.md - Part 0: Local Testing](DEPLOYMENT.md#part-0-local-testing-start-here)
+
+**🚀 Ready to deploy?** See [DEPLOYMENT.md](DEPLOYMENT.md) for production deployment with GitHub Actions + Watchtower.
+
 ## Features
 
 - Anonymous user support with single request limit

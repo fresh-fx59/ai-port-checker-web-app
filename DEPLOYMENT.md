@@ -23,6 +23,218 @@ New images automatically pulled and deployed
 - GitHub account with repository
 - Domain name (optional, for production)
 
+---
+
+## Part 0: Local Testing (Start Here!)
+
+**⚠️ IMPORTANT:** Always test your application locally before deploying to production!
+
+### Quick Start with Automated Script
+
+The easiest way to set up local testing:
+
+```bash
+# 1. Edit .env.local with your API keys
+# Required: GEMINI_API_KEY from https://makersuite.google.com/app/apikey
+# Optional: GOOGLE_CLIENT_ID/SECRET for OAuth
+nano .env.local
+
+# 2. Run the setup script
+./test-local.sh          # On macOS/Linux
+# or
+test-local.bat           # On Windows
+
+# 3. Follow the on-screen instructions to start backend and frontend
+```
+
+### Manual Local Setup
+
+If you prefer to set up manually:
+
+#### 1. Edit Local Environment File
+
+```bash
+# Edit .env.local with your actual values
+nano .env.local
+```
+
+**Minimum required configuration for `.env.local`:**
+```bash
+# Database (uses Docker containers)
+DATABASE_URL=jdbc:postgresql://localhost:5432/gemini_web_app_dev
+DATABASE_USERNAME=gemini_user
+DATABASE_PASSWORD=gemini_password
+
+# Gemini API (REQUIRED - get from https://makersuite.google.com/app/apikey)
+GEMINI_API_KEY=your-actual-gemini-api-key
+
+# Security
+JWT_SECRET=local-dev-secret-at-least-32-characters-long
+
+# CORS (allow all local ports)
+CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
+```
+
+#### 2. Start Database Services
+
+**Option A: With Redis (recommended for testing production-like setup)**
+```bash
+docker compose up -d postgres redis
+```
+
+**Option B: Without Redis (simpler, for basic testing)**
+```bash
+docker compose -f docker-compose.no-redis.yml up -d postgres
+```
+
+Verify services are running:
+```bash
+docker compose ps
+docker exec gemini-postgres pg_isready -U gemini_user
+```
+
+#### 3. Start Backend
+
+```bash
+cd backend
+
+# Load environment variables (Linux/macOS)
+export $(grep -v '^#' ../.env.local | xargs)
+
+# Start backend
+mvn spring-boot:run -Dspring-boot.run.profiles=dev      # With Redis
+# or
+mvn spring-boot:run -Dspring-boot.run.profiles=no-redis # Without Redis
+```
+
+Backend runs on: **http://localhost:8080**
+
+Verify backend health:
+```bash
+curl http://localhost:8080/actuator/health
+```
+
+#### 4. Start Frontend (in a new terminal)
+
+```bash
+cd frontend
+
+# Install dependencies (first time only)
+npm install
+
+# Start dev server
+npm run dev
+```
+
+Frontend runs on: **http://localhost:5173** (or :3000 if 5173 is busy)
+
+#### 5. Test the Application
+
+1. **Open browser:** Navigate to http://localhost:5173
+2. **Anonymous test:** Submit a prompt without logging in (uses browser fingerprint, 1 request quota)
+3. **Register:** Create an account with email/password
+4. **Authenticated test:** Login and submit more prompts (5 request quota)
+5. **View history:** Check your request history page
+6. **Test OAuth (optional):** If you configured Google OAuth, test "Login with Google"
+
+#### 6. Verify Everything Works
+
+```bash
+# Check backend logs
+# (visible in the terminal where you ran mvn spring-boot:run)
+
+# Check database
+docker exec -it gemini-postgres psql -U gemini_user -d gemini_web_app_dev
+# Inside psql:
+# \dt                          -- List tables
+# SELECT * FROM users;         -- View users
+# SELECT * FROM request_logs;  -- View request logs
+# \q                           -- Exit
+
+# Check Docker services
+docker compose ps
+docker compose logs postgres
+docker compose logs redis
+```
+
+### Local Testing Checklist
+
+Before deploying to production, verify locally:
+
+- [ ] Backend starts without errors (check logs)
+- [ ] Database migrations run successfully (Flyway)
+- [ ] Frontend dev server starts and shows UI
+- [ ] Anonymous prompt submission works (1 request limit enforced)
+- [ ] User registration works (email/password)
+- [ ] User login works
+- [ ] Authenticated prompt submission works (5 request limit enforced)
+- [ ] Request history displays correctly
+- [ ] Rate limiting works (try submitting >10 requests/minute)
+- [ ] Backend health endpoint responds: `/actuator/health`
+- [ ] No CORS errors in browser console
+- [ ] Database has correct data (check with psql)
+
+### Troubleshooting Local Setup
+
+**Port already in use:**
+```bash
+# Check what's using the port
+lsof -i :8080    # Backend port
+lsof -i :5432    # PostgreSQL port
+lsof -i :6379    # Redis port
+
+# Change ports in .env.local or stop conflicting services
+```
+
+**Database connection refused:**
+```bash
+# Verify PostgreSQL container is running
+docker compose ps postgres
+
+# Check container logs
+docker compose logs postgres
+
+# Restart PostgreSQL
+docker compose restart postgres
+```
+
+**Gemini API 401 Unauthorized:**
+- Verify `GEMINI_API_KEY` in `.env.local` is correct
+- Check key is enabled at https://console.cloud.google.com/
+- Ensure "Generative Language API" is enabled
+
+**Frontend can't reach backend:**
+- Check `CORS_ALLOWED_ORIGINS` includes your frontend URL
+- Verify backend is running on port 8080
+- Check browser console for CORS errors
+
+**Redis connection error (if using Redis profile):**
+- Verify Redis container is running: `docker compose ps redis`
+- Or switch to `no-redis` profile if not needed
+
+**Schema validation errors:**
+- Delete volumes and restart: `docker compose down -v && docker compose up -d`
+- Check Flyway migrations ran: Look for "Successfully applied X migrations" in backend logs
+
+### Cleaning Up
+
+```bash
+# Stop all services
+docker compose down
+
+# Remove volumes (WARNING: deletes all data)
+docker compose down -v
+
+# Remove .env.local (keeps your secrets safe)
+rm .env.local
+
+# Stop and remove everything
+docker compose down -v
+docker system prune -a
+```
+
+---
+
 ## Part 1: Initial Setup on Your Server
 
 ### 1. Install Docker and Docker Compose
@@ -131,16 +343,47 @@ docker compose -f docker-compose.ghcr.yml ps
 
 ## Part 2: GitHub Actions Setup
 
-### 1. Enable GitHub Container Registry
+### 1. Set Up GitHub Secrets
+
+Before running the workflow, you need to add Docker Hub credentials to avoid rate limits:
+
+**Create Docker Hub Access Token:**
+1. Go to https://hub.docker.com/settings/security
+2. Click "New Access Token"
+3. Name it "github-actions" (or any name)
+4. Copy the token (you won't see it again!)
+
+**Add Secrets to GitHub Repository:**
+1. Go to your GitHub repository
+2. Click **Settings** → **Secrets and variables** → **Actions**
+3. Click **New repository secret**
+4. Add these two secrets:
+
+   **Secret 1:**
+   - Name: `DOCKERHUB_USERNAME`
+   - Value: Your Docker Hub username
+
+   **Secret 2:**
+   - Name: `DOCKERHUB_TOKEN`
+   - Value: The access token you just created
+
+**Why this is needed:**
+- Docker Hub limits unauthenticated pulls to 100 per 6 hours
+- Authenticated users get 200 pulls per 6 hours (free tier)
+- GitHub Actions pulls base images (postgres, redis, node, nginx) during builds
+- Without authentication, you'll hit rate limits quickly
+
+### 2. Enable GitHub Container Registry
 
 The workflow is already configured in `.github/workflows/docker-build-push.yml`.
 
 When you push to `main` branch, GitHub Actions will automatically:
-1. Build backend and frontend Docker images
-2. Push them to GitHub Container Registry (GHCR)
-3. Tag with `latest` and the git commit SHA
+1. **Log in to Docker Hub** (using your secrets to avoid rate limits)
+2. **Build backend and frontend Docker images** (pulls base images from Docker Hub)
+3. **Push to GitHub Container Registry (GHCR)** (stores your built images)
+4. **Tag with `latest` and the git commit SHA**
 
-### 2. Make Repository Packages Public (Optional)
+### 3. Make Repository Packages Public (Optional)
 
 By default, GHCR packages are private. To make them public:
 
@@ -150,9 +393,9 @@ By default, GHCR packages are private. To make them public:
 4. Click "Package settings"
 5. Scroll to "Danger Zone" → "Change visibility" → "Public"
 
-**Note:** If keeping packages private, ensure your server is authenticated with GHCR (see step 1.2).
+**Note:** If keeping packages private, ensure your server is authenticated with GHCR (see Part 1, step 2).
 
-### 3. Trigger First Build
+### 4. Trigger First Build
 
 ```bash
 # Make a commit and push to main

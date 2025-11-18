@@ -51,7 +51,7 @@ public class RequestLog {
     private String errorMessage;
 
     @Size(max = 45, message = "IP address must not exceed 45 characters")
-    @Column(name = "ip_address", length = 45)
+    @Column(name = "ip_address", columnDefinition = "inet")
     private String ipAddress;
 
     @Column(name = "user_agent", columnDefinition = "TEXT")

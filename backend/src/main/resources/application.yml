@@ -1,9 +1,14 @@
 spring:
   application:
     name: gemini-web-app
-  
+
   profiles:
     active: dev
+
+  # Enable colored output
+  output:
+    ansi:
+      enabled: ALWAYS
   
   # Database configuration
   datasource:
