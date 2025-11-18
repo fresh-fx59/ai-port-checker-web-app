@@ -657,3 +657,24 @@ For issues:
 - Check Watchtower logs: `docker logs gemini-watchtower`
 - Review GitHub Actions runs in repository
 - Verify environment variables are correct
+
+
+## Quick commands
+
+```bash
+ls -la
+ss -tulpen
+
+git clone https://github.com/fresh-fx59/ai-port-checker-web-app.git
+
+git pull origin main
+
+docker compose -f docker-compose.prod.yml --env-file .env.production build
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d --force-recreate
+
+docker logs a749f3973247
+docker start 6d96258288e3
+docker stop a1b2ea28b4eb
+docker rm a1b2ea28b4eb
+docker ps
+```

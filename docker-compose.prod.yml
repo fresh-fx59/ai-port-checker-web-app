@@ -11,8 +11,6 @@ services:
     volumes:
       - postgres_prod_data:/var/lib/postgresql/data
       - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
-    ports:
-      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USERNAME}"]
       interval: 10s
@@ -24,8 +22,6 @@ services:
     image: redis:7-alpine
     container_name: gemini-redis-prod
     command: redis-server --requirepass ${REDIS_PASSWORD:-}
-    ports:
-      - "6379:6379"
     volumes:
       - redis_prod_data:/data
     healthcheck:
@@ -87,23 +83,6 @@ services:
       timeout: 10s
       retries: 3
     restart: unless-stopped
-
-  # Nginx reverse proxy (optional)
-  nginx:
-    image: nginx:alpine
-    container_name: gemini-nginx-prod
-    ports:
-      - "443:443"
-      - "80:80"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-      - ./nginx/ssl:/etc/nginx/ssl
-    depends_on:
-      - backend
-      - frontend
-    restart: always
-    profiles:
-      - nginx
 
 volumes:
   postgres_prod_data:
