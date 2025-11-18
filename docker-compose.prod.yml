@@ -2,35 +2,71 @@ version: '3.8'
 
 services:
   postgres:
+    image: postgres:15-alpine
+    container_name: gemini-postgres-prod
     environment:
-      POSTGRES_DB: gemini_web_app
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DATABASE_NAME:-gemini_web_app}
+      POSTGRES_USER: ${DATABASE_USERNAME}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
     volumes:
-      - postgres_prod_data:/var/lib/postgresql/data
-    ports: []  # Don't expose ports in production
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USERNAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
 
   redis:
+    image: redis:7-alpine
+    container_name: gemini-redis-prod
+    command: redis-server --requirepass ${REDIS_PASSWORD:-}
+    ports:
+      - "6379:6379"
     volumes:
-      - redis_prod_data:/data
-    ports: []  # Don't expose ports in production
-    command: redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
 
-  app:
+  backend:
+    build:
+        context: ./backend
+        dockerfile: Dockerfile
+    container_name: gemini-backend-prod
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: prod
-      DATABASE_URL: jdbc:postgresql://postgres:5432/gemini_web_app
-      DATABASE_USERNAME: ${DB_USER}
-      DATABASE_PASSWORD: ${DB_PASSWORD}
+      DATABASE_URL: jdbc:postgresql://postgres:5432/${DATABASE_NAME:-gemini_web_app}
+      DATABASE_USERNAME: ${DATABASE_USERNAME}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD}
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
       JWT_SECRET: ${JWT_SECRET}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
-    restart: always
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/actuator/health", "||", "exit", "1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
 
   # Production frontend with nginx
   frontend:
@@ -38,16 +74,21 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: gemini-frontend-prod
-    ports:
-      - "80:80"
     depends_on:
-      - app
-    restart: always
+      - backend
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:8080}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
 
   # Nginx reverse proxy (optional)
   nginx:
     image: nginx:alpine
-    container_name: gemini-nginx
+    container_name: gemini-nginx-prod
     ports:
       - "443:443"
       - "80:80"
@@ -55,11 +96,9 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf
       - ./nginx/ssl:/etc/nginx/ssl
     depends_on:
-      - app
+      - backend
       - frontend
     restart: always
-    profiles:
-      - nginx
 
 volumes:
   postgres_prod_data:
