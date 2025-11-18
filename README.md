@@ -155,6 +155,42 @@ java -jar target/gemini-web-app-0.0.1-SNAPSHOT.jar --spring.profiles.active=no-r
 ### Health Check
 - `GET /actuator/health` - Application health status
 
+## Production Deployment
+
+### Automated Deployment with GitHub Actions + Watchtower
+
+This project includes automated deployment using GitHub Actions to build Docker images and Watchtower for automatic updates on your server.
+
+**Quick Start:**
+```bash
+# 1. On your server, run the setup script
+./server-setup.sh
+
+# 2. Edit production environment variables
+nano .env.production
+
+# 3. Start the application
+./deploy.sh start
+```
+
+**How it works:**
+1. Push code to `main` branch
+2. GitHub Actions builds Docker images and pushes to GitHub Container Registry (GHCR)
+3. Watchtower on your server automatically pulls and deploys new images within 5 minutes
+4. Zero-downtime rolling updates
+
+**Management commands:**
+```bash
+./deploy.sh start      # Start all services
+./deploy.sh stop       # Stop all services
+./deploy.sh status     # Show status
+./deploy.sh logs-f     # Follow logs
+./deploy.sh update     # Manual update to latest
+./deploy.sh backup-db  # Backup database
+```
+
+For detailed deployment instructions, see [DEPLOYMENT.md](DEPLOYMENT.md)
+
 ## Development
 
 ### Project Structure

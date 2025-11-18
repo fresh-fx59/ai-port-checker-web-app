@@ -128,8 +128,8 @@ print_message "Verifying Docker installation..."
 docker --version
 docker compose version
 
-# Configure Docker daemon for production use
-print_message "Configuring Docker daemon..."
+# Configure Docker daemon for production use with Watchtower support
+print_message "Configuring Docker daemon for Watchtower compatibility..."
 mkdir -p /etc/docker
 
 cat > /etc/docker/daemon.json <<EOF
@@ -141,7 +141,11 @@ cat > /etc/docker/daemon.json <<EOF
   },
   "live-restore": true,
   "userland-proxy": false,
-  "ipv6": false
+  "ipv6": false,
+  "labels": [
+    "com.centurylinklabs.watchtower.enable=true"
+  ],
+  "experimental": false
 }
 EOF
 
@@ -181,4 +185,40 @@ echo ""
 print_message "Installation complete! Docker is ready to use."
 if [ -n "$SUDO_USER" ]; then
     print_warning "Remember: User $SUDO_USER needs to log out and back in to use Docker without sudo."
+fi
+
+# Deploy Watchtower for automatic container updates
+print_message "Deploying Watchtower for automatic container monitoring and updates..."
+
+docker run -d \
+  --name watchtower \
+  --restart unless-stopped \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -e WATCHTOWER_CLEANUP=true \
+  -e WATCHTOWER_POLL_INTERVAL=300 \
+  -e WATCHTOWER_INCLUDE_RESTARTING=true \
+  -e WATCHTOWER_INCLUDE_STOPPED=false \
+  -e WATCHTOWER_REVIVE_STOPPED=false \
+  -e WATCHTOWER_NO_PULL=false \
+  -e WATCHTOWER_LABEL_ENABLE=true \
+  containrrr/watchtower:latest > /dev/null 2>&1
+
+if [ $? -eq 0 ]; then
+    print_message "Watchtower deployed successfully!"
+    echo ""
+    echo "=========================================="
+    echo "Watchtower Configuration:"
+    echo "=========================================="
+    echo "  • Poll Interval: 5 minutes (300 seconds)"
+    echo "  • Auto-cleanup: Enabled (removes old images)"
+    echo "  • Label mode: Enabled (only watches labeled containers)"
+    echo ""
+    echo "To enable Watchtower monitoring for a container, add this label:"
+    echo "  --label com.centurylinklabs.watchtower.enable=true"
+    echo ""
+    echo "Example:"
+    echo "  docker run -d --label com.centurylinklabs.watchtower.enable=true myapp:latest"
+    echo "=========================================="
+else
+    print_warning "Watchtower deployment failed. You can deploy it manually later."
 fi
