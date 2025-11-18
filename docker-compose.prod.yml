@@ -74,10 +74,13 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: gemini-frontend-prod
+    ports:
+      - "443:443"
+      - "80:80"
     depends_on:
       - backend
     environment:
-      VITE_API_URL: ${VITE_API_URL:-http://localhost:8080}
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:80}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:80"]
       interval: 30s
@@ -99,6 +102,8 @@ services:
       - backend
       - frontend
     restart: always
+    profiles:
+      - nginx
 
 volumes:
   postgres_prod_data:
